@@ -1,0 +1,204 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<sys/time.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+#include<unistd.h>
+#include<string.h>
+#include<time.h>
+#include<errno.h>
+#include<sys/epoll.h>
+#include<fcntl.h>
+
+#include "http_request_r.h"
+#include "http_request_parse.h"
+
+#define SERVER_PORT 8000
+#define BACK_LOG 128
+#define LF     (u_char) 10
+#define CR     (u_char) 13
+
+
+int server_start();
+
+int set_non_blocking(int fd);
+
+int onData(int epfd,struct epoll_event ev,http_request_r *r);
+
+int onAccept(int epfd,struct epoll_event ev,http_request_r **r);
+
+int epoll_add(int epfd,int fd);
+
+
+int main(int argv,char **args)
+{
+	int ret,epfd,nfds,server_socket_fd,i,index;
+	struct epoll_event events[256];
+	int count;	
+
+	server_socket_fd = server_start();	
+	if(server_socket_fd<0)
+	{
+		return 0;
+	}
+	set_non_blocking(server_socket_fd);
+
+	epfd = epoll_create(1024);
+	set_non_blocking(epfd);
+	epoll_add(epfd,server_socket_fd);
+
+	struct http_request_r *r=NULL,*p=NULL;
+
+        while(1)
+        {
+                nfds=epoll_wait(epfd,events,20,500);
+                for(i=0;i<nfds;i++)
+                {
+                        if(events[i].data.fd==server_socket_fd)
+                        {
+				onAccept(epfd,events[i],&r);
+			}
+                        else if(events[i].events&EPOLLIN)
+                        {
+				p = find_http_request(r,events[i].data.fd);
+				onData(epfd,events[i],p);
+                        }
+                }
+        }
+}
+
+int onData(int epfd,struct epoll_event ev,http_request_r *r)
+{
+	char buf[1024];
+	char msg[1024],*p;
+	int ret;
+
+	memset(buf,0,1024);
+        ret = recv(ev.data.fd,buf,1024,0);
+        if(ret==-1)
+        {
+              if(errno != EINTR  && errno != EAGAIN){
+                    close(ev.data.fd);
+                    ev.data.fd = -1;
+                    perror("error");
+              }else{
+                    perror("recive error");
+              }
+        }
+        else if(ret==0)
+	{
+              close(ev.data.fd);
+              ev.data.fd = -1;
+        }
+        else if(ret>0)
+        {
+              //printf("%s",buf);
+	      http_request_parse(r,buf);
+
+		fflush(stdout);
+              strcpy(msg,"recive");
+              //printf("%s\n",msg);
+              ret = send(ev.data.fd,msg,strlen(msg),0);
+              if(ret<0)
+              {
+                    perror("send error!");
+                    return -1;
+              }
+		
+	      //close(ev.data.fd);
+		//ev.data.fd=-1;
+        }
+	return 0;
+}
+
+int onAccept(int epfd,struct epoll_event ev,struct http_request_r **r)
+{
+	int server_socket_fd,client_socket_fd,addrlen,ret;
+	struct sockaddr_in client_addr;
+	char msg[1024];	
+
+	server_socket_fd = ev.data.fd;
+	client_socket_fd = accept(server_socket_fd,(struct sockaddr *)&client_addr,&addrlen);
+        if(client_socket_fd<0)
+        {
+              perror("accpet error");
+              return -1;
+        
+	}
+
+        add_http_request(r,client_socket_fd);
+
+       // printf("%d is comming",client_socket_fd);
+	set_non_blocking(client_socket_fd);
+	epoll_add(epfd,client_socket_fd);
+
+        memset(msg,0,1024);
+        strcpy(msg,"server:Welcome to my server\n");
+
+        ret = send(client_socket_fd,msg,strlen(msg),0);
+        if(ret<0)
+        {
+              perror("send error!");
+              return -1;
+        }
+	
+	return 0;
+}
+
+int epoll_add(int epfd,int fd)
+{
+	struct epoll_event ev;
+	
+	ev.data.fd=fd;
+        ev.events=EPOLLIN|EPOLLET;
+        epoll_ctl(epfd,EPOLL_CTL_ADD,fd,&ev);
+
+	return 1;
+}
+
+int set_non_blocking(int fd)
+{
+	int flags,ret;
+	flags = fcntl(fd,F_GETFL);
+        flags = flags|O_NONBLOCK;
+        ret = fcntl(fd,F_SETFL,flags);
+	return ret;
+}
+
+int server_start()
+{
+        int server_socket_fd;
+	int addrlen;
+	int ret;
+	struct sockaddr_in server_addr;
+        
+	server_addr.sin_family=AF_INET;
+        server_addr.sin_addr.s_addr=INADDR_ANY;
+        server_addr.sin_port=htons(SERVER_PORT);
+
+        server_socket_fd = socket(PF_INET,SOCK_STREAM,0);
+        if(server_socket_fd<0)
+        {
+                perror("socket error");
+                return -1;
+        }
+
+        addrlen = sizeof(struct sockaddr);
+        ret = bind(server_socket_fd,(struct sockaddr *)&server_addr,addrlen);
+        if(ret<0)
+        {
+                perror("bind error");
+                return -1;
+        }
+
+        ret = listen(server_socket_fd,BACK_LOG);
+        if(ret<0)
+        {
+                perror("listen error");
+                return -1;
+        }
+
+	return server_socket_fd;
+}

@@ -14,6 +14,7 @@
 
 #include "http_request_r.h"
 #include "http_request_parse.h"
+#include "http_response_r.h"
 
 #define SERVER_PORT 8000
 #define BACK_LOG 128
@@ -71,7 +72,7 @@ int main(int argv,char **args)
 int onData(int epfd,struct epoll_event ev,http_request_r **r)
 {
 	char buf[1024];
-	char msg[1024],*p;
+	char *msg;
 	int ret;
 
 	memset(buf,0,1024);
@@ -99,7 +100,7 @@ int onData(int epfd,struct epoll_event ev,http_request_r **r)
 
 		if(p->is_end==1)
 		{
-			strcpy(msg,"recive");
+			msg = static_http_response_out(*r);
               		ret = send(ev.data.fd,msg,strlen(msg),0);
               		if(ret<0)
               		{

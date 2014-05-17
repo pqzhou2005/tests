@@ -3,6 +3,7 @@
 int chtoint(char *p)
 {
 	int i,n,sum;
+	sum = 0;
 	n = strlen(p);
 
 	for(i=0;i<n;i++)

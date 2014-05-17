@@ -1,10 +1,13 @@
 typedef struct http_request_r
 {
-        char *method;
-        char *http;
+        int request_header_fields_pos;
+	
+	char *method;
+        char *protocol;
         char *request_uri;
 
         unsigned int content_length;
+	int content_pos;
 
         char *content;
 
@@ -23,7 +26,7 @@ typedef struct http_request_r
 
 int add_http_request(struct http_request_r **r,int fd);
 
-int delete_http_request(struct http_request_r *r,int fd);
+int delete_http_request(struct http_request_r **r,int fd);
 
 http_request_r* find_http_request(struct http_request_r *r,int fd);
 

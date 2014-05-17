@@ -25,7 +25,7 @@ int server_start();
 
 int set_non_blocking(int fd);
 
-int onData(int epfd,struct epoll_event ev,http_request_r *r);
+int onData(int epfd,struct epoll_event ev,http_request_r **r);
 
 int onAccept(int epfd,struct epoll_event ev,http_request_r **r);
 
@@ -62,14 +62,13 @@ int main(int argv,char **args)
 			}
                         else if(events[i].events&EPOLLIN)
                         {
-				p = find_http_request(r,events[i].data.fd);
-				onData(epfd,events[i],p);
+				onData(epfd,events[i],&r);
                         }
                 }
         }
 }
 
-int onData(int epfd,struct epoll_event ev,http_request_r *r)
+int onData(int epfd,struct epoll_event ev,http_request_r **r)
 {
 	char buf[1024];
 	char msg[1024],*p;
@@ -94,21 +93,25 @@ int onData(int epfd,struct epoll_event ev,http_request_r *r)
         }
         else if(ret>0)
         {
-              //printf("%s",buf);
-	      http_request_parse(r,buf);
+		struct http_request_r *p;
+		p = find_http_request(*r,ev.data.fd);
+	      	http_request_parse(p,buf);
 
-		fflush(stdout);
-              strcpy(msg,"recive");
-              //printf("%s\n",msg);
-              ret = send(ev.data.fd,msg,strlen(msg),0);
-              if(ret<0)
-              {
-                    perror("send error!");
-                    return -1;
-              }
+		if(p->is_end==1)
+		{
+			strcpy(msg,"recive");
+              		ret = send(ev.data.fd,msg,strlen(msg),0);
+              		if(ret<0)
+              		{
+                    		perror("send error!");
+                    		return -1;
+              		}
 		
-	      //close(ev.data.fd);
-		//ev.data.fd=-1;
+			delete_http_request(r,ev.data.fd);	
+		
+			close(ev.data.fd);
+                	ev.data.fd=-1;		
+		}		
         }
 	return 0;
 }
@@ -129,6 +132,9 @@ int onAccept(int epfd,struct epoll_event ev,struct http_request_r **r)
 	}
 
         add_http_request(r,client_socket_fd);
+	struct http_request_r *q;
+	q = *r;
+	printf("%s\n",q->buf);
 
        // printf("%d is comming",client_socket_fd);
 	set_non_blocking(client_socket_fd);

@@ -12,6 +12,9 @@ int add_http_request(struct http_request_r **r,int fd)
 	q = (struct http_request_r *)malloc(sizeof(struct http_request_r));
        	memset(q,0,sizeof(struct http_request_r));
 	q->fd = fd;
+	
+	q->request_uri = (char *)malloc(128);
+	memset(q->request_uri,0,128);
 
 	if(p!=NULL)
 	{
@@ -28,10 +31,10 @@ int add_http_request(struct http_request_r **r,int fd)
 	return 1;
 }
 
-int delete_http_request(struct http_request_r *r,int fd)
+int delete_http_request(struct http_request_r **r,int fd)
 {
 	struct http_request_r *q,*s;
-	q = r;
+	q = *r;
 
 	int i=0;
 	while(q!=NULL)
@@ -44,7 +47,7 @@ int delete_http_request(struct http_request_r *r,int fd)
 		i++;
 	}
 
-	q = r;
+	q = *r;
 	
 	int j=0;
 	while(q!=NULL)
@@ -56,6 +59,13 @@ int delete_http_request(struct http_request_r *r,int fd)
 			free(s);
 			return 1;
 		}
+		if(i==0)
+		{
+			*r = NULL;
+			free(*r);
+			return 1;
+		}
+
 		q = q->pnext;
 		j++;
 	}

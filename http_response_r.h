@@ -24,10 +24,14 @@ typedef struct http_response_r
 
 	char *buf;
 
+	int size;
+
 } http_response_r;
 
-char *static_http_response_out(struct http_request_r *r);
+int static_http_response_out(struct http_request_r *r,struct http_response_r *o);
 
-int init_http_resonse(struct http_request_r *r, struct http_response_r *p);
+int init_http_resonse(struct http_request_r *r, struct http_response_r *o);
 
-int gen_http_response_buf(struct http_response_r *p);
+int gen_http_response_buf(struct http_response_r *o);
+
+int readfile(char *path, struct http_response_r *o);

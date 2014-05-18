@@ -72,8 +72,9 @@ int main(int argv,char **args)
 int onData(int epfd,struct epoll_event ev,http_request_r **r)
 {
 	char buf[1024];
-	char *msg;
+	void *msg;
 	int ret;
+	int j;
 
 	memset(buf,0,1024);
         ret = recv(ev.data.fd,buf,1024,0);
@@ -100,14 +101,26 @@ int onData(int epfd,struct epoll_event ev,http_request_r **r)
 
 		if(p->is_end==1)
 		{
-			msg = static_http_response_out(*r);
-              		ret = send(ev.data.fd,msg,strlen(msg),0);
+			struct http_response_r *o;
+			o = (struct http_response_r *)malloc(sizeof(struct http_response_r));			
+			memset(o,0,sizeof(struct http_response_r));
+
+			static_http_response_out(*r,o);
+              		
+			ret = send(ev.data.fd,o->buf,o->size,0);
               		if(ret<0)
               		{
                     		perror("send error!");
                     		return -1;
               		}
-		
+	
+			ret = send(ev.data.fd,o->body,o->content_length,0);
+              		if(ret<0)
+              		{
+                    		perror("send error!");
+                    		return -1;
+              		}
+	
 			delete_http_request(r,ev.data.fd);	
 		
 			close(ev.data.fd);
@@ -121,7 +134,6 @@ int onAccept(int epfd,struct epoll_event ev,struct http_request_r **r)
 {
 	int server_socket_fd,client_socket_fd,addrlen,ret;
 	struct sockaddr_in client_addr;
-	char msg[1024];	
 
 	server_socket_fd = ev.data.fd;
 	client_socket_fd = accept(server_socket_fd,(struct sockaddr *)&client_addr,&addrlen);
@@ -135,22 +147,10 @@ int onAccept(int epfd,struct epoll_event ev,struct http_request_r **r)
         add_http_request(r,client_socket_fd);
 	struct http_request_r *q;
 	q = *r;
-	printf("%s\n",q->buf);
 
-       // printf("%d is comming",client_socket_fd);
 	set_non_blocking(client_socket_fd);
 	epoll_add(epfd,client_socket_fd);
 
-        memset(msg,0,1024);
-        strcpy(msg,"server:Welcome to my server\n");
-
-        ret = send(client_socket_fd,msg,strlen(msg),0);
-        if(ret<0)
-        {
-              perror("send error!");
-              return -1;
-        }
-	
 	return 0;
 }
 

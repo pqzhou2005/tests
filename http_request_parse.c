@@ -135,12 +135,12 @@ int http_request_line_parse(struct http_request_r *r)
 
 	r->request_uri = (char *)malloc(128);
 	memset(r->request_uri,0,128);
-	cstrcpy(r->request_uri,r->buf,pos[0]+1,pos[1]-pos[0]);
+	cstrcpy(r->request_uri,r->buf,pos[0]+1,pos[1]-pos[0]-1);
 
 	
 	r->protocol = (char *)malloc(12);
 	memset(r->protocol,0,12);
-	cstrcpy(r->protocol,r->buf,pos[1]+1,pos[2]-pos[1]);
+	cstrcpy(r->protocol,r->buf,pos[1]+1,pos[2]-pos[1]-1);
 
 	r->request_header_fields_pos = pos[2]+2;
 }

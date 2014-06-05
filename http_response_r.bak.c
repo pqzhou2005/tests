@@ -9,41 +9,140 @@
 #include "http_request_r.h"
 #include "http_response_r.h"
 #include "content_type.h"
-#include "http_fastcgi.h"
 
 int static_http_response_out(struct http_request_r *r,struct http_response_r *o)
 {
-	init_http_response(r,o);	
+	int i,j,n,k,m,ret,period_pos=0,query_pos=0,slash_pos=0,ext_end_pos=0,ext_length=0;
+	char *dir;
+	char *file_name;
+	char *ext;
+	char ch;
+	char *const_ext[7]={"png","jpg","gif","swf","zip","html","htm"};
+	char *html_ext = "html";
+	char *html = "index.html";
 
-	int ret;
-	ret = access(r->path,R_OK);
-	if(ret==-1)
+	printf("request_uri:%s %d\n",r->request_uri,strlen(r->request_uri));
+
+	init_http_response(r,o);
+
+	dir = (char *)malloc(100);
+	memset(dir,0,100);
+	
+	file_name = (char *)malloc(120);
+	memset(file_name,0,120);
+	
+	ext = (char *)malloc(10);
+	memset(ext,0,10);
+
+	n = strlen(r->request_uri);
+	
+	for(i=0;i<n;i++)
 	{
-		o->status_code = 404;		
+		ch = r->request_uri[i];
+		if(ch=='/')
+		{
+			slash_pos=i;
+		}
+		
+		if(ch=='.')
+		{
+			period_pos=i;
+		}
+		
+		if(ch=='?')
+		{
+			query_pos=i;
+			break;
+		}
 	}
 	
-        if(o->status_code==404)
-        {
-                o->reason_phrase = "Not Found";
-                strcpy(r->ext,"html");
-                strcpy(r->path,"/data/tests/error_404.html");
-        }
+	strcpy(dir,"/data/tests/web/");
+	if(slash_pos>0)
+	{
+		cstrcpy(dir,r->request_uri,0,slash_pos);
+	}
+
+	printf("%d %d %d\n",period_pos,query_pos,slash_pos);
+
+	//ext check
+	if(period_pos>0)
+	{
+		if(query_pos>0)
+		{
+			ext_end_pos = query_pos-1;
+		}
+		else
+		{
+			ext_end_pos = n;
+		}
+	
+		for(j=0;j<7;j++)
+		{
+			m=0;
+			i=period_pos+1;
+			for(k=0;k<strlen(const_ext[j]);k++)
+			{
+				if(const_ext[j][k]==r->request_uri[i])
+				{
+					m++;	
+				}
+				i++;
+			}
+
+			printf("m:%d n:%d i:%d ext:%d\n",m,strlen(const_ext[j]),i,ext_end_pos);
+	
+			if(m==strlen(const_ext[j]) && i<=ext_end_pos)
+			{
+				strcpy(ext,const_ext[j]);
+				break;
+			}
+		}
+
+		if(strlen(ext)>0)
+		{
+			cstrcpy(file_name,r->request_uri,slash_pos+1,ext_end_pos-slash_pos-1);	
+		}
+		else
+		{
+			o->status_code = 404;	
+		}
+	
+	}
+	else
+	{
+		strcpy(ext,html_ext);
+		strcpy(file_name,html);
+	}
+	
+	if(o->status_code==200)
+	{
+		strcat(dir,file_name);
+		
+		ret = access(dir,R_OK);
+		if(ret==-1)
+		{
+			perror("access error");
+			o->status_code = 404;		
+		}
+	}
+	printf("%d\n",o->status_code);
+
+	if(o->status_code==404)
+	{
+		o->reason_phrase = "Not Found";
+		strcpy(ext,"html");	
+		strcpy(dir,"/data/tests/error_404.html");
+	}
+
 
 	struct stat stat_buf;
-	ret = stat(r->path,&stat_buf);
+	ret = stat(dir,&stat_buf);
 	if(ret==-1)
 	{
 		perror("stat error");
 	}
 
-	if(strcmp(r->ext,"php")==0)
-	{
-		fast_cgi_handle(r,o);
-	}
-	else
-	{
-		readfile(r->path,o);
-	}
+	ret = readfile(dir,o);
 
 	o->last_modified = gdate(&stat_buf.st_mtime);
 
@@ -51,17 +150,22 @@ int static_http_response_out(struct http_request_r *r,struct http_response_r *o)
 	ext_point = (char *)malloc(10);
 	memset(ext_point,0,10);	
 
-	printf("ext:%s\n",r->ext);
-	sprintf(ext_point,".%s",r->ext);
+	printf("%s\n",ext);
+	sprintf(ext_point,".%s",ext);
+	printf("%s\n",ext_point);
 
 	char *content_type;
 	content_type = find_content_type(ext_point);
+	printf("%s\n",content_type);
 
 	char *c_type;
 	c_type = (char *)malloc(50);
 	memset(c_type,0,50);
 	sprintf(c_type,"%s",content_type); 
+	printf("%s\n",c_type);
 	o->content_type = c_type;
+	//strcat(o->content_type,";charset=utf8");	
+
 	
 	gen_http_response_buf(o);
 
@@ -74,17 +178,11 @@ int init_http_response(struct http_request_r *r,struct http_response_r *o)
 	o->status_code = 200;
 
         o->http_version = (char *)malloc(10);
-        if(o->http_version==NULL){
-		printf("%s is error!\n","o http_version");	
-	}
-	memset(o->http_version,0,10);
+        memset(o->http_version,0,10);
 	strcpy(o->http_version,"HTTP/1.1");
 
         o->server = (char *)malloc(12);
-        if(o->server==NULL){
-                printf("%s is error!\n","o server");  
-        }
-	memset(o->server,0,12);
+        memset(o->server,0,12);
         strcpy(o->server,"HTTP SERVER");
 
         o->reason_phrase = (char *)malloc(50);
@@ -117,12 +215,9 @@ int init_http_response(struct http_request_r *r,struct http_response_r *o)
 
 int gen_http_response_buf(struct http_response_r *o)
 {
-	printf("%s test...\n","test");
 	char *status_line;
-	int size=0,nsize=0;
-	
+	int size,nsize=0;
 	size = strlen(o->http_version)+strlen(o->reason_phrase)+8;
-
 	nsize = size + nsize;
 	status_line = (char *)malloc(size);
 	memset(status_line,0,size);	

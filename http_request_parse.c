@@ -13,6 +13,7 @@ int http_request_parse(struct http_request_r *r,char p[1024])
 	strcat(r->buf,p);	
 
 	n = strlen(r->buf);
+	r->buf_size = n;
 	for(i=0;i<n;i++)
 	{
 		ch = r->buf[i];
@@ -39,6 +40,8 @@ int http_request_parse(struct http_request_r *r,char p[1024])
 		if(r->is_end==1)
 		{
 			http_request_line_parse(r);
+	
+			http_request_ext_path(r);
 			
 			http_request_header_fields_parse(r);
 		}
@@ -198,6 +201,66 @@ int http_request_header_fields_parse(struct http_request_r *r)
 		}
 		
 	}	
-	
+}
 
+int http_request_ext_path(struct http_request_r *r)
+{
+	int i=0,n=0,period_pos=0,query_pos=0,file_end_pos=0;	
+	char ch;
+
+	r->path = (char *)malloc(100);
+        memset(r->path,0,100);
+ 
+	r->ext = (char *)malloc(10);
+        memset(r->ext,0,10);
+
+        n = strlen(r->request_uri);
+
+        for(i=0;i<n;i++)
+        {
+                ch = r->request_uri[i];
+                if(ch=='.')
+                {
+                        period_pos=i;
+                }
+
+                if(ch=='?')
+                {
+                        query_pos=i;
+                        break;
+                }
+        }
+
+        strcpy(r->path,"/data/tests/web/");
+
+        if(query_pos>0)
+        {
+        	file_end_pos = query_pos-1;
+        }
+        else
+        {
+        	file_end_pos = n;
+        }
+	
+	if(file_end_pos<2)
+	{
+		strcpy(r->path+strlen(r->path),"index.html");
+		printf("%s\n",r->path);
+		strcpy(r->ext,"html");
+	}
+	else
+	{
+		strncpy(r->path+strlen(r->path),r->request_uri,file_end_pos);
+		if(period_pos>0)
+		{
+			cstrcpy(r->ext,r->request_uri,period_pos+1,file_end_pos-period_pos-1);
+		}
+		else
+		{
+			strcpy(r->ext,"");
+		}
+	}
+
+	printf("%d %d %s\n",file_end_pos,period_pos,r->ext);
+	
 }

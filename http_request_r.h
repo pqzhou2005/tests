@@ -12,12 +12,18 @@ typedef struct http_request_r
         char *content;
 
 	char buf[1024];	
+	
+	int buf_size;	
 
         int is_end;
 
         int fd;
 
 	int pos;
+
+	char *ext;
+	
+	char *path;
 
         struct http_request_r *plast;
         struct http_request_r *pnext;

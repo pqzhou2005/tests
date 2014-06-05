@@ -26,23 +26,12 @@
 
 int main(int argv,char **args)
 {
-	char *path = "/data/tests/web/1.gif";
+	char *m;
+	m = (char *)malloc(100);
+	memset(m,0,100);
 
-	FILE *fp;
-	int size;
-	char str[1]={0}; 
+	strcpy(m,"test");
+	strcpy(m+strlen(m),"2222");
 
-	fp = fopen(path,"r");
-        fseek(fp,0,SEEK_END);
-        size = ftell(fp)+1;
-	fread(str,1,1,fp);
-	printf("%02x ",str[0]);
-	fclose(fp);
-	
-	printf("size:%d\n",size);
-
-	struct stat stat_buf;
-        stat(path,&stat_buf);	
-	printf("stsize:%d\n",stat_buf.st_size);
-	
+	printf("%s\n",m);
 }

@@ -26,12 +26,7 @@
 
 int main(int argv,char **args)
 {
-	char *m;
-	m = (char *)malloc(100);
-	memset(m,0,100);
-
-	strcpy(m,"test");
-	strcpy(m+strlen(m),"2222");
-
-	printf("%s\n",m);
+	while(1){
+		fork();
+	}
 }

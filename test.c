@@ -1,38 +1,31 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <string.h>
-#include <time.h>
-#include <errno.h>
-#include <sys/epoll.h>
-#include <fcntl.h>
+#include"stdafx.h"
+#include<iostream>
+using namespace std;
+#define MAXSIZE 1000
+int f[MAXSIZE+1],c[MAXSIZE+1],w[MAXSIZE+1];
 
-#define SERVER_PORT 8000
-#define BACK_LOG 128
-
-struct test
+int_main(int argc,_TCHAR *argv[])
 {
-	int fd;
-}
-
-struct test *test();
-
-int main(int argv,char **args)
-{
-	struct test *t;
-	t = test();
-	//printf("%d\n",t.fd);
-}
-
-struct test *test()
-{
-	struct test t;
-	t.fd = 1;
-
-	return &t;
+	int N,V;
+	
+	cin>>N>>V;
+	
+	int i=1;
+	
+	for(;i<=N;++i)
+	{
+		cin>>c[i]>>w[i];
+	}
+	
+	for(i=1;i<=N;++i)
+	{
+		for(int v=V;v>=c[i];--v)//c[i]可优化为bound,bound=max{V-sumc[i,...n],c[i]}
+		{
+			f[v]=(f[v]>f[v-c[i]]+w[i])?f[v]:f[v-c[i]]+w[i];
+		}
+	}
+//当i=N时，可以跳出循环单独计算F[V]
+//cout<<f[V]<<'\n';
+//system("pause");
+return0;
 }
